@@ -166,12 +166,19 @@ export function detailArtist(resource: WhitneyResource): SummaryRecord {
  * (exhibitions, events, guides, pages). Scalar values are kept, HTML is
  * stripped, long prose is truncated and internal identifiers are dropped.
  */
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T/;
+
+/** Internal numeric foreign keys carry no meaning outside the Museum's systems. */
+function isInternalId(key: string, value: unknown): boolean {
+  return typeof value === "number" && key.endsWith("_id") && key !== "tms_id";
+}
+
 export function summariseGeneric(resource: WhitneyResource, proseLimit = 400): SummaryRecord {
   const output: SummaryRecord = { id: resource.id, type: resource.type };
   const skip = new Set(["id", "topgoose_id", "created_at", "updated_at"]);
 
   for (const [key, value] of Object.entries(resource.attributes)) {
-    if (skip.has(key)) continue;
+    if (skip.has(key) || isInternalId(key, value)) continue;
 
     if (typeof value === "boolean" || typeof value === "number") {
       output[key] = value;
@@ -179,8 +186,19 @@ export function summariseGeneric(resource: WhitneyResource, proseLimit = 400): S
     }
 
     if (typeof value === "string") {
+      // Timestamps arrive with a time and offset that is never meaningful here.
+      if (ISO_TIMESTAMP.test(value)) {
+        output[key] = value.slice(0, 10);
+        continue;
+      }
+
       const text = stripHtml(value);
-      if (text) output[key] = truncate(text, proseLimit);
+      if (!text) continue;
+
+      output[key] =
+        key === "url" && text.startsWith("/")
+          ? `https://whitney.org${text}`
+          : truncate(text, proseLimit);
       continue;
     }
 

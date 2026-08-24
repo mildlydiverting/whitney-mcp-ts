@@ -40,6 +40,19 @@ const listShape = {
   response_format: responseFormatField,
 };
 
+/** Exhibitions and events carry start_time / end_time; guides and pages do not. */
+const datedListShape = {
+  ...listShape,
+  starts_on_or_after: z
+    .string()
+    .optional()
+    .describe("ISO date (YYYY-MM-DD); keep records starting on or after this date"),
+  starts_on_or_before: z
+    .string()
+    .optional()
+    .describe("ISO date (YYYY-MM-DD); keep records starting on or before this date"),
+};
+
 const idShape = {
   id: z.string().min(1).describe("Record ID"),
   response_format: responseFormatField,
@@ -55,12 +68,19 @@ async function listGeneric(
     title?: string;
     filters?: Record<string, string>;
     sort?: string;
+    starts_on_or_after?: string;
+    starts_on_or_before?: string;
     page: number;
     limit: number;
     response_format: "markdown" | "json";
   },
 ) {
-  const filters: RansackFilters = { title_cont: args.title, ...(args.filters ?? {}) };
+  const filters: RansackFilters = {
+    title_cont: args.title,
+    start_time_gteq: args.starts_on_or_after,
+    start_time_lteq: args.starts_on_or_before,
+    ...(args.filters ?? {}),
+  };
   const query = buildQuery(filters, { sort: args.sort, page: args.page });
 
   const response = await getList(`/${endpoint}`, query);
@@ -91,7 +111,7 @@ Args:
 Returns: { total, count, page, has_more, next_page?, results[] }
 
 Exhibition fields are passed through generically — the Museum documents its field set as subject to change, so this tool keeps whatever scalar fields the API returns, strips HTML and truncates long prose. Run one search with limit=1 to see the available field names before writing a 'filters' query.`,
-      inputSchema: listShape,
+      inputSchema: datedListShape,
       outputSchema: listOutputShape,
       annotations: readOnlyAnnotations,
     },
@@ -138,7 +158,7 @@ Args:
 Returns: { total, count, page, has_more, next_page?, results[] }
 
 As with exhibitions, fields are passed through generically. Sort by 'sort_date desc' for the most recent programming.`,
-      inputSchema: listShape,
+      inputSchema: datedListShape,
       outputSchema: listOutputShape,
       annotations: readOnlyAnnotations,
     },

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { WhitneyApiError } from "../services/client.js";
 import { API_PAGE_SIZE } from "../constants.js";
 
@@ -48,11 +49,12 @@ export const readOnlyAnnotations = {
   openWorldHint: true,
 } as const;
 
-export interface ToolResult {
-  content: Array<{ type: "text"; text: string }>;
-  structuredContent?: Record<string, unknown>;
-  isError?: boolean;
-}
+/**
+ * Use the SDK's own result type rather than a hand-rolled one: registerTool
+ * expects a type carrying an index signature, which a local interface does not
+ * supply implicitly.
+ */
+export type ToolResult = CallToolResult;
 
 /**
  * Run a tool handler, converting thrown errors into an error result the model
