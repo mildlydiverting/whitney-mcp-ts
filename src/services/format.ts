@@ -27,28 +27,99 @@ export function bool(value: unknown): boolean | undefined {
 }
 
 /**
- * Whitney descriptions and biographies arrive as HTML. Tags are removed rather
- * than rendered — the model wants the prose, not the markup.
+ * Whitney prose arrives as HTML carrying two things worth keeping: emphasis
+ * (which marks work titles) and internal links (which are curator-authored
+ * cross-references to other artists and artworks). Both are converted rather
+ * than discarded; extractReferences pulls the linked IDs out separately.
  */
-export function stripHtml(value: unknown): string | undefined {
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&rsquo;|&lsquo;/gi, "'")
+    .replace(/&ldquo;|&rdquo;/gi, '"')
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&");
+}
+
+/**
+ * Convert Whitney HTML to markdown. Links become [text](absolute url),
+ * emphasis becomes *text*, everything else is dropped.
+ */
+export function htmlToMarkdown(value: unknown): string | undefined {
   const raw = str(value);
   if (!raw) return undefined;
 
   const text = raw
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/p>/gi, " ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&rsquo;|&lsquo;/gi, "'")
-    .replace(/&ldquo;|&rdquo;/gi, '"')
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
+    // Links: make relative hrefs absolute, keep the label.
+    .replace(
+      /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+      (_match, href: string, label: string) => {
+        const cleanLabel = label.replace(/<[^>]+>/g, "").trim();
+        const url = href.startsWith("/") ? `https://whitney.org${href}` : href;
+        return cleanLabel ? `[${cleanLabel}](${url})` : "";
+      },
+    )
+    // Emphasis: work titles are marked with <em> or <i>.
+    .replace(/<(em|i)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_match, _tag, inner: string) => {
+      const cleanInner = inner.replace(/<[^>]+>/g, "").trim();
+      return cleanInner ? `*${cleanInner}*` : "";
+    })
+    .replace(/<[^>]+>/g, "");
+
+  const decoded = decodeEntities(text).replace(/\s+/g, " ").trim();
+  return decoded.length > 0 ? decoded : undefined;
+}
+
+/**
+ * Plain-text conversion, for fields where markup carries nothing (dimensions,
+ * edition statements, generic passthrough fields).
+ */
+export function stripHtml(value: unknown): string | undefined {
+  const raw = str(value);
+  if (!raw) return undefined;
+
+  const text = decodeEntities(
+    raw
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<\/p>/gi, " ")
+      .replace(/<[^>]+>/g, ""),
+  )
     .replace(/\s+/g, " ")
     .trim();
 
   return text.length > 0 ? text : undefined;
+}
+
+/**
+ * Pull Whitney record IDs out of the links in a block of HTML, so a model can
+ * follow a cross-reference with whitney_get_artist / whitney_get_artwork rather
+ * than matching on names.
+ */
+export function extractReferences(value: unknown): {
+  artists?: string[];
+  artworks?: string[];
+} {
+  const raw = str(value);
+  if (!raw) return {};
+
+  const artists = new Set<string>();
+  const artworks = new Set<string>();
+
+  for (const match of raw.matchAll(/href=["']\/artists\/([A-Za-z0-9]+)["']/gi)) {
+    if (match[1]) artists.add(match[1]);
+  }
+  for (const match of raw.matchAll(/href=["']\/collection\/works\/([A-Za-z0-9]+)["']/gi)) {
+    if (match[1]) artworks.add(match[1]);
+  }
+
+  return {
+    ...(artists.size > 0 ? { artists: [...artists] } : {}),
+    ...(artworks.size > 0 ? { artworks: [...artworks] } : {}),
+  };
 }
 
 export function truncate(value: string | undefined, max: number = PROSE_LIMIT): string | undefined {
@@ -101,6 +172,11 @@ export function summariseArtwork(resource: WhitneyResource): SummaryRecord {
 /** Everything worth having about one artwork. */
 export function detailArtwork(resource: WhitneyResource): SummaryRecord {
   const a = resource.attributes;
+  const refs = extractReferences(a.description ?? "");
+  const labelRefs = extractReferences(a.object_label ?? "");
+  const mentionedArtists = [...new Set([...(refs.artists ?? []), ...(labelRefs.artists ?? [])])];
+  const mentionedArtworks = [...new Set([...(refs.artworks ?? []), ...(labelRefs.artworks ?? [])])];
+
   return compact({
     id: resource.id,
     tms_id: num(a.tms_id),
@@ -118,11 +194,13 @@ export function detailArtwork(resource: WhitneyResource): SummaryRecord {
     edition: stripHtml(a.edition),
     publication_info: str(a.publication_info),
     on_view: bool(a.on_view),
-    description: truncate(stripHtml(a.description)),
-    object_label: truncate(stripHtml(a.object_label)),
+    description: truncate(htmlToMarkdown(a.description)),
+    object_label: truncate(htmlToMarkdown(a.object_label)),
     visual_description: truncate(stripHtml(a.visual_description)),
     alt_text: str(a.alt_text) ?? str(a.ai_alt_text),
     alt_text_is_ai_generated: str(a.alt_text) ? undefined : Boolean(str(a.ai_alt_text)),
+    mentions_artists: mentionedArtists.length > 0 ? mentionedArtists : undefined,
+    mentions_artworks: mentionedArtworks.length > 0 ? mentionedArtworks : undefined,
     images: allImageUrls(a.images),
     page_url: `https://whitney.org/collection/works/${resource.id}`,
   });
@@ -142,6 +220,8 @@ export function summariseArtist(resource: WhitneyResource): SummaryRecord {
 
 export function detailArtist(resource: WhitneyResource): SummaryRecord {
   const a = resource.attributes;
+  const refs = extractReferences(a.biography ?? "");
+
   return compact({
     id: resource.id,
     tms_id: num(a.tms_id),
@@ -156,7 +236,9 @@ export function detailArtist(resource: WhitneyResource): SummaryRecord {
     on_view: bool(a.on_view),
     ulan_id: str(a.ulan_id),
     wikidata_id: str(a.wikidata_id),
-    biography: truncate(stripHtml(a.biography)),
+    biography: truncate(htmlToMarkdown(a.biography)),
+    mentions_artists: refs.artists,
+    mentions_artworks: refs.artworks,
     page_url: `https://whitney.org/artists/${resource.id}`,
   });
 }

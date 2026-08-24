@@ -34,7 +34,7 @@ const listShape = {
   sort: z
     .string()
     .optional()
-    .describe("Ransack sort string, e.g. 'sort_date desc', 'title asc', or 'random'"),
+    .describe("Ransack sort string, e.g. 'start_time desc', 'title asc', or 'random'"),
   page: pageField,
   limit: limitField,
   response_format: responseFormatField,
@@ -104,13 +104,14 @@ export function registerRecordTools(server: McpServer): void {
 Args:
   - title (string, optional): substring match
   - filters (object, optional): raw Ransack predicates for fields this tool does not expose
-  - sort (string, optional): e.g. 'sort_date desc', 'random'
+  - sort (string, optional): e.g. 'start_time desc', 'random'
+  - starts_on_or_after / starts_on_or_before (string, optional): ISO dates (YYYY-MM-DD) filtering on start_time
   - page (number, default 1), limit (number, 1-30, default 10)
   - response_format ('markdown' | 'json', default 'markdown')
 
 Returns: { total, count, page, has_more, next_page?, results[] }
 
-Exhibition fields are passed through generically — the Museum documents its field set as subject to change, so this tool keeps whatever scalar fields the API returns, strips HTML and truncates long prose. Run one search with limit=1 to see the available field names before writing a 'filters' query.`,
+Exhibition fields are passed through generically — the Museum documents its field set as subject to change, so this tool keeps whatever scalar fields the API returns, strips HTML, shortens timestamps to dates and drops internal IDs. Known fields include title, start_time, end_time, date_override, url, primary_text, press_highlights and popularity. Run one search with limit=1 to confirm before writing a 'filters' query.`,
       inputSchema: datedListShape,
       outputSchema: listOutputShape,
       annotations: readOnlyAnnotations,
@@ -151,13 +152,14 @@ Returns: { record: {...} } — fields as published by the API, HTML stripped.`,
 Args:
   - title (string, optional): substring match
   - filters (object, optional): raw Ransack predicates
-  - sort (string, optional): e.g. 'sort_date desc'
+  - sort (string, optional): e.g. 'start_time desc'
+  - starts_on_or_after / starts_on_or_before (string, optional): ISO dates (YYYY-MM-DD) filtering on start_time
   - page (number, default 1), limit (number, 1-30, default 10)
   - response_format ('markdown' | 'json', default 'markdown')
 
 Returns: { total, count, page, has_more, next_page?, results[] }
 
-As with exhibitions, fields are passed through generically. Sort by 'sort_date desc' for the most recent programming.`,
+As with exhibitions, fields are passed through generically. Sort by 'start_time desc' for the most recent programming.`,
       inputSchema: datedListShape,
       outputSchema: listOutputShape,
       annotations: readOnlyAnnotations,

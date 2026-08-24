@@ -1,22 +1,27 @@
-# whitney-museum-mcp-server
+# whitney-mcp-ts
 
 An MCP server for the Whitney Museum's public API. Search the collection, artists, exhibitions, events and audio guides from Claude Desktop or any MCP client.
 
+TypeScript, stdio only, friendly parameters mapped onto the API's Ransack syntax, and responses trimmed to keep them manageable in a model's context.
+
+No API key needed. The Whitney's API is open and unauthenticated.
+
 Not affiliated with the Whitney Museum of American Art. This is a third-party wrapper around their public API, documented at <https://whitney.org/about/website/api>.
 
-You don't need an API key, as the Whitney's API is open and unauthenticated.
+See also Sam Parsons' [whitney-museum-mcp](https://github.com/sam-parsons/whitney-museum-mcp) — a Python/FastMCP server over the same API, with Docker and HTTP transport. 
+
 
 ## Install
 
 ```bash
-npx whitney-museum-mcp-server
+npx whitney-mcp-ts
 ```
 
 Or from source:
 
 ```bash
-git clone https://github.com/mildlydiverting/whitney-museum-mcp-server.git
-cd whitney-museum-mcp-server
+git clone https://github.com/mildlydiverting/whitney-mcp-ts.git
+cd whitney-mcp-ts
 npm install
 npm run build
 ```
@@ -32,7 +37,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "whitney": {
       "command": "npx",
-      "args": ["-y", "whitney-museum-mcp-server"]
+      "args": ["-y", "whitney-mcp-ts"]
     }
   }
 }
@@ -45,7 +50,7 @@ From source, point at the build instead:
   "mcpServers": {
     "whitney": {
       "command": "node",
-      "args": ["/absolute/path/to/whitney-museum-mcp-server/dist/index.js"]
+      "args": ["/absolute/path/to/whitney-mcp-ts/dist/index.js"]
     }
   }
 }
@@ -79,9 +84,7 @@ Quit and reopen Claude Desktop. The config doesn't expand `~`, so use a full pat
 
 **Artist and artwork fields are mapped explicitly.** Exhibitions, events, guides and pages go through a generic summariser instead: HTML stripped, timestamps shortened to dates, relative URLs made absolute, internal foreign keys dropped. The Museum says its field set may change, so nothing is hard-coded that doesn't need to be. Run a search with `limit: 1` to see the real field names, then use `filters` for anything specific.
 
-## Known quirks
-
-These are the API's, not the wrapper's.
+## Known API quirks
 
 - `sort: "random"` doesn't reliably randomise. Asking for three random works returned three consecutive accession numbers by the same artist. If you need genuine randomness, request a random page number instead.
 - `display_date` on artworks is free text — "1915–1931, printed 1976–1977" — so date ranges don't work there. Exhibitions and events have real timestamps, and `starts_on_or_after` / `starts_on_or_before` filter on those.
@@ -92,20 +95,16 @@ These are the API's, not the wrapper's.
 
 For anything at scale, don't page through the API. The Whitney publishes artist and artwork CSVs at <https://github.com/whitneymuseum/open-access>, released under CC0.
 
-## Fun things to do
-
-Get your friendly robot to make connections between Whitney records and other museums using the Getty ULAN and Wikidata MCPs. 
-
-(I'm using all these to add links and richer info to my teaching / research notes.)
-
 ## Licences
 
-Code is released under MIT — see `LICENSE`.
+Code under MIT `LICENSE`.
 
-The underlying data belongs to The Whitney. Material accessed through the API may be protected by copyright and other restrictions. The Whitney permits noncommercial educational and personal use, plus fair use, provided copyright notices are retained and the author and source cited. Read their terms at <https://whitney.org/about/website/api> before you build anything public on it.
+The Whitney owns the data returned.
+
+The Whitney states that material accessed through the API may be protected by copyright and other restrictions, and permits noncommercial educational and personal use, plus fair use, provided copyright notices are retained and the author and source cited. Read their terms at <https://whitney.org/about/website/api> before you build anything public on it.
 
 Note the CSV datasets linked above are CC0, which is more permissive than the API terms. Same data, different door.
 
-## Thank you
+## Thanks
 
-To the Whitney's digital team for publishing an API at all, and for documenting it properly. You are most excellent darlings.
+To the Whitney's digital team for publishing an API at all, and for documenting it properly.
