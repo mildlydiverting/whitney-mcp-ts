@@ -1,28 +1,28 @@
 {
-  "name": "whitney-mcp-server",
+  "name": "whitney-museum-mcp-server",
   "version": "0.1.0",
-  "description": "MCP server for the Whitney Museum of American Art public API (artists, artworks, exhibitions, events)",
+  "description": "MCP server for the Whitney Museum of American Art public API — artists, artworks, exhibitions, events and audio guides",
   "type": "module",
   "main": "dist/index.js",
-  "bin": {
-    "whitney-mcp-server": "dist/index.js"
-  },
-  "engines": {
-    "node": ">=20"
-  },
+  "bin": { "whitney-museum-mcp-server": "dist/index.js" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
     "start": "node dist/index.js",
     "dev": "tsc --watch",
-    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [
-    "mcp",
-    "whitney",
-    "museum",
-    "open-access"
-  ],
+  "keywords": ["mcp", "modelcontextprotocol", "whitney", "museum", "art", "open-access", "collections"],
+  "author": "Kim Plowright",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mildlydiverting/whitney-museum-mcp-server.git"
+  },
+  "homepage": "https://github.com/mildlydiverting/whitney-museum-mcp-server#readme",
+  "bugs": { "url": "https://github.com/mildlydiverting/whitney-museum-mcp-server/issues" },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.25.0"

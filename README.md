@@ -1,71 +1,111 @@
-# whitney-mcp-server
+# whitney-museum-mcp-server
 
-An MCP server over the [Whitney Museum of American Art public API](https://whitney.org/about/website/api) — artists, artworks, exhibitions, events and audio guides. No API key, no account, no auth.
+An MCP server for the Whitney Museum's public API. Search the collection, artists, exhibitions, events and audio guides from Claude Desktop or any MCP client.
+
+Not affiliated with the Whitney Museum of American Art. This is a third-party wrapper around their public API, documented at <https://whitney.org/about/website/api>.
+
+You don't need an API key, as the Whitney's API is open and unauthenticated.
 
 ## Install
 
 ```bash
-cd whitney-mcp-server
+npx whitney-museum-mcp-server
+```
+
+Or from source:
+
+```bash
+git clone https://github.com/mildlydiverting/whitney-museum-mcp-server.git
+cd whitney-museum-mcp-server
 npm install
 npm run build
 ```
 
-Node 20 or newer (the server uses the built-in `fetch`).
+Node 20 or newer.
 
-If `npm install` complains about peer versions, check the current releases of `@modelcontextprotocol/sdk` and `zod` and update `package.json` — the pins here are conservative rather than verified against today's registry.
+## Claude Desktop
 
-## Test before wiring it up
+Add to `claude_desktop_config.json`:
 
-```bash
-npm run inspect
+```json
+{
+  "mcpServers": {
+    "whitney": {
+      "command": "npx",
+      "args": ["-y", "whitney-museum-mcp-server"]
+    }
+  }
+}
 ```
 
-That opens the MCP Inspector against the built server. Try `whitney_search_artworks` with `title: "moon"` and `classification: "Paintings"` — you should get a handful of works back. Then try `whitney_get_artist` with `id: "962"` (Georgia O'Keeffe).
-
-## Add to Claude Desktop
-
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+From source, point at the build instead:
 
 ```json
 {
   "mcpServers": {
     "whitney": {
       "command": "node",
-      "args": ["/absolute/path/to/whitney-mcp-server/dist/index.js"]
+      "args": ["/absolute/path/to/whitney-museum-mcp-server/dist/index.js"]
     }
   }
 }
 ```
 
-Restart Claude Desktop. Use an absolute path — the config does not expand `~`.
+Quit and reopen Claude Desktop. The config doesn't expand `~`, so use a full path.
 
 ## Tools
 
 | Tool | What it does |
 | --- | --- |
 | `whitney_search_artworks` | Search 27,000+ works by title, artist, classification, medium, date, on-view status |
-| `whitney_get_artwork` | Full record for one work, including dimensions, credit line and image URLs |
+| `whitney_get_artwork` | Full record for one work — dimensions, credit line, description, image URLs |
 | `whitney_search_artists` | Search 7,000+ artists; filter by collection, Biennial, on view |
-| `whitney_get_artist` | Full artist record including biography, Getty ULAN and Wikidata IDs |
+| `whitney_get_artist` | Full artist record, including biography, Getty ULAN and Wikidata IDs |
 | `whitney_artist_artworks` | Works by a given artist |
 | `whitney_artist_exhibitions` | Exhibitions featuring a given artist |
-| `whitney_search_exhibitions` / `whitney_get_exhibition` | Exhibitions from 1931 onwards |
+| `whitney_search_exhibitions` | Exhibitions from 1931 onwards, with date filtering |
+| `whitney_get_exhibition` | One exhibition record |
 | `whitney_search_events` | Talks, tours and programmes from 2008 onwards |
 | `whitney_search_guides` | Audio guides published since 2009 |
-| `whitney_query` | Raw endpoint access with arbitrary Ransack predicates |
+| `whitney_query` | Any endpoint, with raw Ransack predicates |
 
-## Design notes
+## What to expect
 
-**Context, not completeness.** Whitney records carry long HTML descriptions, biographies and multi-line dimension strings. Search tools return slim summaries; detail tools return the full record with HTML stripped and prose truncated at 2,000 characters. Responses are capped at 25,000 characters overall.
+**Search returns slim records.** Whitney records carry long HTML descriptions and biographies, so search gives you the basics and `whitney_get_*` gives you everything. Prose is truncated at 2,000 characters, whole responses at 25,000.
 
-**Pagination.** The API returns a fixed 30 records per page. `page` selects the page; `limit` trims client-side, defaulting to 10 so that a broad search does not flood the context.
+**Pagination is 30 per page.** That's the API's page size. `page` picks the page, `limit` trims it further — the default of 10 stops a broad search flooding your context.
 
-**Search syntax.** The API uses Ransack-style predicates nested under `q` (`_eq`, `_cont`, `_cont_all_split`, `_gt`, `_true` and so on), with sorting under `q[s]`. The typed tools map friendly arguments onto these; `whitney_query` exposes them directly.
+**Search syntax is Ransack.** Predicates nest under `q` (`_eq`, `_cont`, `_cont_all_split`, `_gteq` and friends), sorting under `q[s]`. The typed tools map friendly arguments onto these. `whitney_query` exposes them raw, for anything the typed tools don't reach.
 
-**Field coverage.** Artwork and artist fields are mapped explicitly, since those responses were inspected directly. Exhibition, event, guide and page fields are passed through a generic summariser instead — the Museum states the field set is subject to change, and guessing field names would produce silent empty filters. Run a search with `limit: 1` to see the real field names, then use `filters` for anything specific.
+**Artist and artwork fields are mapped explicitly.** Exhibitions, events, guides and pages go through a generic summariser instead: HTML stripped, timestamps shortened to dates, relative URLs made absolute, internal foreign keys dropped. The Museum says its field set may change, so nothing is hard-coded that doesn't need to be. Run a search with `limit: 1` to see the real field names, then use `filters` for anything specific.
 
-**Unverified.** No rate limit is documented. The Museum asks that use be respectful so the API stays performant for everyone; for bulk work, use the [open access CSVs](https://github.com/whitneymuseum/open-access) instead of paginating the API.
+## Known quirks
 
-## Licence and use
+These are the API's, not the wrapper's.
 
-The MCP server code is MIT. The *data* is not: the Whitney states that material accessed through the API may be protected by copyright and other restrictions, and permits noncommercial educational and personal use, plus fair use, provided copyright notices are retained and the author and source are cited.
+- `sort: "random"` doesn't reliably randomise. Asking for three random works returned three consecutive accession numbers by the same artist. If you need genuine randomness, request a random page number instead.
+- `display_date` on artworks is free text — "1915–1931, printed 1976–1977" — so date ranges don't work there. Exhibitions and events have real timestamps, and `starts_on_or_after` / `starts_on_or_before` filter on those.
+- Living artists have `death_year: "0"`. Don't do arithmetic on it.
+- Ransack ignores predicates it doesn't recognise rather than erroring, so a misspelled field silently returns everything. Check your result counts.
+
+## Bulk data
+
+For anything at scale, don't page through the API. The Whitney publishes artist and artwork CSVs at <https://github.com/whitneymuseum/open-access>, released under CC0.
+
+## Fun things to do
+
+Get your friendly robot to make connections between Whitney records and other museums using the Getty ULAN and Wikidata MCPs. 
+
+(I'm using all these to add links and richer info to my teaching / research notes.)
+
+## Licences
+
+Code is released under MIT — see `LICENSE`.
+
+The underlying data belongs to The Whitney. Material accessed through the API may be protected by copyright and other restrictions. The Whitney permits noncommercial educational and personal use, plus fair use, provided copyright notices are retained and the author and source cited. Read their terms at <https://whitney.org/about/website/api> before you build anything public on it.
+
+Note the CSV datasets linked above are CC0, which is more permissive than the API terms. Same data, different door.
+
+## Thank you
+
+To the Whitney's digital team for publishing an API at all, and for documenting it properly. You are most excellent darlings.
