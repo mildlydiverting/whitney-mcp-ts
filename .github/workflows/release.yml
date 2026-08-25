@@ -1,0 +1,42 @@
+name: Release
+
+# Publishes to npm when a version tag is pushed. Tags rather than branch
+# pushes: a tag is a deliberate act, so a bad commit landing on main can't
+# ship itself to the registry.
+#
+# Authentication is npm trusted publishing (OIDC) — no NPM_TOKEN, no secrets.
+# The trust is pinned to org/repo/workflow-filename, so renaming this file
+# breaks publishing until you update the config on npmjs.com.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write # required for npm to accept the OIDC token
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24 ships an npm new enough for trusted publishing (>= 11.5.1).
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Publish
+        run: npm publish --access public
