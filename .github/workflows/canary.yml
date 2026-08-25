@@ -1,0 +1,32 @@
+name: API canary
+
+# Checks that the Whitney API still looks how this server expects. Monthly:
+# museums do not move fast, and there is no reason to poke someone else's
+# server more often than that. Also runnable by hand from the Actions tab.
+on:
+  schedule:
+    - cron: "0 9 1 * *" # 09:00 UTC on the 1st of each month
+  workflow_dispatch:
+
+# Read-only: this job only fetches the code and calls a public API.
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Live API checks
+        env:
+          CANARY: "1"
+        run: npx vitest run tests/canary.test.ts

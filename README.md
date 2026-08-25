@@ -6,7 +6,7 @@ TypeScript, stdio only, friendly parameters mapped onto the API's Ransack syntax
 
 No API key needed. The Whitney's API is open and unauthenticated.
 
-Not affiliated with the Whitney Museum of American Art. This is a third-party wrapper around their public API, documented at <https://whitney.org/about/website/api>.
+Not affiliated with the Whitney Museum of American Art. This is a third-party wrapper around their public API, which is documented at <https://whitney.org/about/website/api>.
 
 See also Sam Parsons' [whitney-museum-mcp](https://github.com/sam-parsons/whitney-museum-mcp) — a Python/FastMCP server over the same API, with Docker and HTTP transport. 
 
@@ -91,20 +91,43 @@ Quit and reopen Claude Desktop. The config doesn't expand `~`, so use a full pat
 - Living artists have `death_year: "0"`. Don't do arithmetic on it.
 - Ransack ignores predicates it doesn't recognise rather than erroring, so a misspelled field silently returns everything. Check your result counts.
 
+## Security
+
+The Whitney's API needs no key, so there's no credentials, nothing to leak and nothing to configure.
+
+Every tool is read-only. The server makes GET requests to `whitney.org` and nothing else — no filesystem access, no shell, no writes. Endpoint names come from a fixed list, record IDs are URL-encoded, and filter parameters go through `URLSearchParams`.
+
+One known limitation: the HTML-to-markdown conversion uses regular expressions with nested quantifiers, which could backtrack badly on deliberately malformed input. The input comes from the Whitney's own CMS rather than from users, so if this happens, something has gone very wrong in NYC and it's probably not my fault.
+
+If you find something, open an issue.
+
+## Development
+
+```bash
+npm test              # unit tests, offline
+npm run test:canary   # live checks against the Whitney API
+npm run inspect       # MCP Inspector against the built server
+```
+
+The canary suite runs monthly in CI. It exists to catch the Whitney changing a field name — the failure mode that unit tests can't see, since they run against saved fixtures.
+
 ## Bulk data
 
 For anything at scale, don't page through the API. The Whitney publishes artist and artwork CSVs at <https://github.com/whitneymuseum/open-access>, released under CC0.
 
 ## Licences
 
-Code under MIT `LICENSE`.
+Code is under MIT `LICENSE`.
 
-The Whitney owns the data returned.
 
-The Whitney states that material accessed through the API may be protected by copyright and other restrictions, and permits noncommercial educational and personal use, plus fair use, provided copyright notices are retained and the author and source cited. Read their terms at <https://whitney.org/about/website/api> before you build anything public on it.
+The Whitney provides the API with the following note:
 
-Note the CSV datasets linked above are CC0, which is more permissive than the API terms. Same data, different door.
+> The data accessed through this API may be protected by copyright, and other restrictions, of the Whitney Museum of American Art and third parties. You may use this data for noncommercial educational and personal use and for "fair use" as authorized under law, provided that you also retain all copyright and other proprietary notices contained on the materials and cite the author and source of the materials.
+
+Read their terms at <https://whitney.org/about/website/api> before you build anything public on it.
+
+Note the CSV datasets linked above are CC0, which may be more permissive than the API terms.
 
 ## Thanks
 
-To the Whitney's digital team for publishing an API at all, and for documenting it properly.
+To the Whitney's digital team for publishing an API at all, and for documenting it properly. And for writing nice blog posts that explicitly say they use claude code, because that makes me feel less guilty for vibe coding this whole shebang.
