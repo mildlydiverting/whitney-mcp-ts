@@ -62,7 +62,7 @@ export const artworkDivola: WhitneyResource = {
     department: "collection",
     classification: "Photographs",
     credit_line: "Purchase, with funds from the Photography Committee",
-    description: "<p>John Divola, <em>Zuma # 82</em>, 1977. Chromogenic print.</p>",
+    description: "<p>John Divola, <em>Zuma # 82</em>, 1977. Chromogenic print, sheet: 11 \u00d7 13 15/16 in. Whitney Museum of American Art, New York; purchase, with funds from the Photography Committee 2011.50. \u00a9 John Divola</p>",
     object_label: null,
     ai_alt_text: "Empty room with a red spray-painted line.",
     alt_text: null,
@@ -114,6 +114,46 @@ export const exhibitionBiennial: WhitneyResource = {
     popularity: 1,
     created_at: "2025-01-01T00:00:00.000-05:00",
     updated_at: "2026-08-01T00:00:00.000-04:00",
+  },
+};
+
+/** Warhol: rightsholder is a foundation, and the notice contains "Inc." */
+export const artworkWarhol: WhitneyResource = {
+  id: "3253",
+  type: "artwork",
+  attributes: {
+    id: 3253,
+    tms_id: 3253,
+    title: "Green Coca-Cola Bottles",
+    display_artist_text: "Andy Warhol",
+    display_date: "1962",
+    accession_number: "68.25",
+    medium: "Acrylic, screenprint, and graphite pencil on canvas",
+    classification: "Paintings",
+    credit_line: "Purchase, with funds from the Friends of the Whitney Museum of American Art",
+    description:
+      "<p>Andy Warhol, <em>Green Coca-Cola Bottles</em>, 1962. Acrylic, screenprint, and graphite pencil on canvas. Whitney Museum of American Art, New York; purchase 68.25. \u00a9 The Andy Warhol Foundation for the Visual Arts, Inc. / Licensed by Artists Rights Society (ARS), New York</p>",
+    on_view: true,
+    images: [],
+  },
+};
+
+/** A nineteenth-century work with no copyright notice at all. */
+export const artworkNoRights: WhitneyResource = {
+  id: "673",
+  type: "artwork",
+  attributes: {
+    id: 673,
+    tms_id: 673,
+    title: "Tree Branch",
+    display_artist_text: "Louis M. Eilshemius",
+    display_date: "c. 1880",
+    medium: "Graphite pencil on paper",
+    classification: "Drawings",
+    description:
+      "<p>Louis M. Eilshemius, <em>Tree Branch</em>, c. 1880. Graphite pencil on paper. Whitney Museum of American Art, New York; purchase 73.9</p>",
+    on_view: false,
+    images: [],
   },
 };
 

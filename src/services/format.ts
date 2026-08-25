@@ -122,6 +122,44 @@ export function extractReferences(value: unknown): {
   };
 }
 
+/**
+ * Extract the copyright notice from an artwork description. The Museum places
+ * it at the end of the sentence, and it names the rightsholder — who is usually
+ * not the artist: an estate, a foundation, or a rights society. Extraction runs
+ * on the raw field, before any truncation, so a long credit line cannot push
+ * the notice out of reach.
+ */
+export function extractRights(value: unknown): string | undefined {
+  const text = stripHtml(value);
+  if (!text) return undefined;
+
+  const index = text.indexOf("\u00a9");
+  if (index === -1) return undefined;
+
+  // Take everything from the symbol to the end: rights lines contain full
+  // stops of their own ("Inc.", "Ltd."), so stopping at one would clip them.
+  const notice = text.slice(index).trim().replace(/\.$/, "");
+  return notice.length > 1 ? notice : undefined;
+}
+
+/**
+ * A citation line in markdown: artist, linked title, date, then the Museum
+ * (linked to its open access page) and the rights notice.
+ */
+export function buildCitation(resource: WhitneyResource): string | undefined {
+  const a = resource.attributes;
+  const title = str(a.title) ?? "Untitled";
+  const artist = str(a.display_artist_text);
+  const url = `https://whitney.org/collection/works/${resource.id}`;
+
+  const head = [artist, `[${title}](${url})`, str(a.display_date)].filter(Boolean).join(", ");
+  const rights = extractRights(a.description);
+
+  return `${head}. [Whitney Museum of American Art](https://whitney.org/open-access)${
+    rights ? `, ${rights}` : ""
+  }.`;
+}
+
 export function truncate(value: string | undefined, max: number = PROSE_LIMIT): string | undefined {
   if (!value) return undefined;
   return value.length <= max ? value : `${value.slice(0, max).trimEnd()}… [truncated]`;
@@ -202,6 +240,8 @@ export function detailArtwork(resource: WhitneyResource): SummaryRecord {
     mentions_artists: mentionedArtists.length > 0 ? mentionedArtists : undefined,
     mentions_artworks: mentionedArtworks.length > 0 ? mentionedArtworks : undefined,
     images: allImageUrls(a.images),
+    rights: extractRights(a.description),
+    citation: buildCitation(resource),
     page_url: `https://whitney.org/collection/works/${resource.id}`,
   });
 }
@@ -377,16 +417,28 @@ export function paginate(
 /**
  * Assemble a tool response, honouring the requested format and the character
  * limit. Structured content is always returned alongside the text.
+ *
+ * Every response carries a source line. The Whitney asks that the author and
+ * source be cited, so the attribution travels with the data rather than being
+ * left for the caller to remember. Once per response, not once per record.
  */
+export const SOURCE_LINE =
+  "Source: Whitney Museum of American Art (whitney.org). Data may be subject to copyright; see https://whitney.org/about/website/api";
+
 export function buildResponse(structured: SummaryRecord, markdown: string, format: ResponseFormat) {
-  let text = format === "json" ? JSON.stringify(structured, null, 2) : markdown;
+  const withSource: SummaryRecord = { ...structured, source: SOURCE_LINE };
+
+  let text =
+    format === "json"
+      ? JSON.stringify(withSource, null, 2)
+      : `${markdown}\n\n---\n${SOURCE_LINE}`;
 
   if (text.length > CHARACTER_LIMIT) {
-    text = `${text.slice(0, CHARACTER_LIMIT)}\n\n[Response truncated at ${CHARACTER_LIMIT} characters. Narrow your filters or lower 'limit'.]`;
+    text = `${text.slice(0, CHARACTER_LIMIT)}\n\n[Response truncated at ${CHARACTER_LIMIT} characters. Narrow your filters or lower 'limit'.]\n\n---\n${SOURCE_LINE}`;
   }
 
   return {
     content: [{ type: "text" as const, text }],
-    structuredContent: structured,
+    structuredContent: withSource,
   };
 }

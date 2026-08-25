@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  SOURCE_LINE,
+  buildCitation,
+  buildResponse,
   detailArtist,
   detailArtwork,
   extractReferences,
+  extractRights,
   htmlToMarkdown,
   paginate,
   stripHtml,
@@ -15,7 +19,9 @@ import {
   artistSparse,
   artworkDivola,
   artworkListResponse,
+  artworkNoRights,
   artworkUntitled,
+  artworkWarhol,
   exhibitionBiennial,
   shortListResponse,
 } from "./fixtures.js";
@@ -122,6 +128,67 @@ describe("summariseArtwork", () => {
   });
 });
 
+describe("extractRights", () => {
+  it("pulls the notice off the end of a description", () => {
+    expect(extractRights(artworkDivola.attributes.description)).toBe("\u00a9 John Divola");
+  });
+
+  it("keeps the whole notice when it contains its own full stops", () => {
+    // "Inc." must not end the match, or the ARS licensing is lost.
+    expect(extractRights(artworkWarhol.attributes.description)).toBe(
+      "\u00a9 The Andy Warhol Foundation for the Visual Arts, Inc. / Licensed by Artists Rights Society (ARS), New York",
+    );
+  });
+
+  it("returns undefined when there is no notice", () => {
+    expect(extractRights(artworkNoRights.attributes.description)).toBeUndefined();
+    expect(extractRights(null)).toBeUndefined();
+  });
+});
+
+describe("buildCitation", () => {
+  it("formats artist, linked title, date, Museum and rights", () => {
+    expect(buildCitation(artworkDivola)).toBe(
+      "John Divola, [Zuma # 82](https://whitney.org/collection/works/38804), 1977. " +
+        "[Whitney Museum of American Art](https://whitney.org/open-access), \u00a9 John Divola.",
+    );
+  });
+
+  it("ends after the Museum when there is no rights notice", () => {
+    expect(buildCitation(artworkNoRights)).toBe(
+      "Louis M. Eilshemius, [Tree Branch](https://whitney.org/collection/works/673), c. 1880. " +
+        "[Whitney Museum of American Art](https://whitney.org/open-access).",
+    );
+  });
+
+  it("uses 'Untitled' as link text for works with no title", () => {
+    expect(buildCitation(artworkUntitled)).toContain(
+      "[Untitled](https://whitney.org/collection/works/37091)",
+    );
+  });
+});
+
+describe("buildResponse", () => {
+  it("appends the source line to markdown", () => {
+    const response = buildResponse({ record: {} }, "# Heading", "markdown");
+    expect(response.content[0]?.text).toContain(SOURCE_LINE);
+    expect(response.content[0]?.text).toContain("# Heading");
+  });
+
+  it("includes source in structured content", () => {
+    const response = buildResponse({ record: {} }, "# Heading", "json");
+    expect(response.structuredContent?.source).toBe(SOURCE_LINE);
+    expect(response.content[0]?.text).toContain('"source"');
+  });
+
+  it("keeps the source line even when the response is truncated", () => {
+    const response = buildResponse({}, "x".repeat(40_000), "markdown");
+    const text = response.content[0]?.text ?? "";
+    expect(text).toContain("[Response truncated");
+    expect(text.endsWith(SOURCE_LINE)).toBe(true);
+  });
+});
+
 describe("detailArtwork", () => {
   const detail = detailArtwork(artworkDivola);
 
@@ -138,6 +205,15 @@ describe("detailArtwork", () => {
   it("omits empty fields rather than emitting nulls", () => {
     expect(detail).not.toHaveProperty("object_label");
     expect(detail).not.toHaveProperty("visual_description");
+  });
+
+  it("carries rights and a citation", () => {
+    expect(detail.rights).toBe("\u00a9 John Divola");
+    expect(detail.citation).toContain("[Whitney Museum of American Art]");
+  });
+
+  it("omits rights for works without a notice", () => {
+    expect(detailArtwork(artworkNoRights)).not.toHaveProperty("rights");
   });
 });
 

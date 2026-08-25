@@ -26,6 +26,11 @@ export const limitField = z
     `Maximum records to return from the fetched page (1-${API_PAGE_SIZE}). Keep this low unless you need the detail — Whitney records are verbose.`,
   );
 
+/** Attribution line appended to every response by buildResponse. */
+const sourceField = z
+  .string()
+  .describe("Attribution for the data, as the Whitney's terms ask for");
+
 /** Output schema shared by every list tool. */
 export const listOutputShape = {
   total: z.number().describe("Total matching records across all pages"),
@@ -35,11 +40,13 @@ export const listOutputShape = {
   next_page: z.number().optional().describe("Page number to request next"),
   results: z.array(z.record(z.unknown())).describe("The records"),
   note: z.string().optional().describe("Advisory note about trimming or pagination"),
+  source: sourceField,
 };
 
 /** Output schema shared by every single-record tool. */
 export const recordOutputShape = {
   record: z.record(z.unknown()).describe("The full record"),
+  source: sourceField,
 };
 
 export const readOnlyAnnotations = {
