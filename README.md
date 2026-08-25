@@ -1,14 +1,14 @@
 # whitney-mcp-ts
 
-An MCP server for the Whitney Museum's public API. Search the collection, artists, exhibitions, events and audio guides from Claude Desktop or any MCP client.
+An MCP server for the [Whitney Museum's public API](https://whitney.org/about/website/api). Search the collection, artists, exhibitions, events and audio guides from Claude Desktop or any MCP client.
 
-TypeScript, stdio only, friendly parameters mapped onto the API's Ransack syntax, and responses trimmed to keep them manageable in a model's context.
+[![CI](https://github.com/mildlydiverting/whitney-mcp-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR-USERNAME/whitney-mcp-ts/actions/workflows/ci.yml)
+[![API canary](https://github.com/mildlydiverting/whitney-mcp-ts/actions/workflows/canary.yml/badge.svg)](https://github.com/YOUR-USERNAME/whitney-mcp-ts/actions/workflows/canary.yml)
+[![npm](https://img.shields.io/npm/v/whitney-mcp-ts)](https://www.npmjs.com/package/whitney-mcp-ts)
 
-No API key needed. The Whitney's API is open and unauthenticated.
+TypeScript, stdio only, friendly parameters mapped onto the API's Ransack syntax, travels with attribution, and responses trimmed to keep them manageable in a model's context.
 
-Not affiliated with the Whitney Museum of American Art. This is a third-party wrapper around their public API, which is documented at <https://whitney.org/about/website/api>.
-
-See also Sam Parsons' [whitney-museum-mcp](https://github.com/sam-parsons/whitney-museum-mcp) — a Python/FastMCP server over the same API, with Docker and HTTP transport. 
+The Whitney's API is open and unauthenticated; no API key needed.
 
 
 ## Install
@@ -76,13 +76,44 @@ Quit and reopen Claude Desktop. The config doesn't expand `~`, so use a full pat
 
 ## What to expect
 
-**Search returns slim records.** Whitney records carry long HTML descriptions and biographies, so search gives you the basics and `whitney_get_*` gives you everything. Prose is truncated at 2,000 characters, whole responses at 25,000.
+## Search returns slim records.
 
-**Pagination is 30 per page.** That's the API's page size. `page` picks the page, `limit` trims it further — the default of 10 stops a broad search flooding your context.
+Whitney records carry long HTML descriptions and biographies, so search gives you the basics and `whitney_get_*` gives you everything. Prose is truncated at 2,000 characters, whole responses at 25,000.
 
-**Search syntax is Ransack.** Predicates nest under `q` (`_eq`, `_cont`, `_cont_all_split`, `_gteq` and friends), sorting under `q[s]`. The typed tools map friendly arguments onto these. `whitney_query` exposes them raw, for anything the typed tools don't reach.
+## Pagination is 30 per page.
 
-**Artist and artwork fields are mapped explicitly.** Exhibitions, events, guides and pages go through a generic summariser instead: HTML stripped, timestamps shortened to dates, relative URLs made absolute, internal foreign keys dropped. The Museum says its field set may change, so nothing is hard-coded that doesn't need to be. Run a search with `limit: 1` to see the real field names, then use `filters` for anything specific.
+That's the API's page size. `page` picks the page, `limit` trims it further — the default of 10 stops a broad search flooding your context.
+
+## Search syntax is Ransack
+
+Predicates nest under `q` (`_eq`, `_cont`, `_cont_all_split`, `_gteq` and friends), sorting under `q[s]`. The typed tools map friendly arguments onto these. `whitney_query` exposes them raw, for anything the typed tools don't reach.
+
+### Artist and artwork fields are mapped explicitly.
+
+Exhibitions, events, guides and pages go through a generic summariser instead: HTML stripped, timestamps shortened to dates, relative URLs made absolute, internal foreign keys dropped. The Museum says its field set may change, so nothing is hard-coded that doesn't need to be. Run a search with `limit: 1` to see the real field names, then use `filters` for anything specific.
+
+### Attribution
+
+Every response ends with a source line naming the Museum and linking their
+terms. Detail records also carry two attribution fields:
+
+- `rights` — the copyright notice, extracted from the Whitney's own
+  description text
+- `citation` — a ready-made markdown line, eg:
+
+> Edward Hopper, [Early Sunday Morning](https://whitney.org/collection/works/46345), 1930. [Whitney Museum of American Art](https://whitney.org/open-access), © Heirs of Josephine N. Hopper/Licensed by Artists Rights Society (ARS), New York.
+
+Note the rightsholder is usually not the artist. In a sample of ten works,
+nine differed — estates, foundations, and rights societies like ARS and VAGA.
+So `rights` is worth reading rather than assuming; it's the notice the
+Whitney's terms ask you to keep.
+
+Works with no copyright notice — older material, mostly — get a citation
+ending after the Museum link.
+
+### Bulk Data
+
+For anything at scale, don't page through the API. The Whitney publishes artist and artwork CSVs at <https://github.com/whitneymuseum/open-access>, released under CC0.
 
 ## Known API quirks
 
@@ -111,14 +142,10 @@ npm run inspect       # MCP Inspector against the built server
 
 The canary suite runs monthly in CI. It exists to catch the Whitney changing a field name — the failure mode that unit tests can't see, since they run against saved fixtures.
 
-## Bulk data
-
-For anything at scale, don't page through the API. The Whitney publishes artist and artwork CSVs at <https://github.com/whitneymuseum/open-access>, released under CC0.
 
 ## Licences
 
-Code is under MIT `LICENSE`.
-
+Code: MIT License.
 
 The Whitney provides the API with the following note:
 
@@ -128,6 +155,10 @@ Read their terms at <https://whitney.org/about/website/api> before you build any
 
 Note the CSV datasets linked above are CC0, which may be more permissive than the API terms.
 
+Not affiliated with the Whitney Museum of American Art. This is a third-party wrapper around their public API, which is documented at <https://whitney.org/about/website/api>.
+
 ## Thanks
+
+See also Sam Parsons' [whitney-museum-mcp](https://github.com/sam-parsons/whitney-museum-mcp) — a Python/FastMCP server over the same API, with Docker and HTTP transport. 
 
 To the Whitney's digital team for publishing an API at all, and for documenting it properly. And for writing nice blog posts that explicitly say they use claude code, because that makes me feel less guilty for vibe coding this whole shebang.
